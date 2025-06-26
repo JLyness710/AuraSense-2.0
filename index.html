@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraSense Dashboard</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts for Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      min-height: 100vh; 
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+  
+  <!-- Firebase CDNs (Core App and Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 text-gray-800">
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+
+  <header class="text-center mb-8">
+    <h1 class="text-4xl sm:text-5xl font-extrabold text-blue-900 drop-shadow-md">AuraSense Dashboard</h1>
+    <p class="text-md sm:text-lg text-blue-700 mt-2">Real-time Environmental Monitoring</p>
+  </header>
+
+  <!-- Latest Readings Section -->
+  <section class="mb-12">
+    <h2 class="text-3xl font-bold text-blue-800 mb-6 text-center">Latest Readings</h2>
+    <div id="latest-readings-container" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-2xl mx-auto border-t-4 border-blue-500">
+      <p id="latest-loading" class="text-xl text-gray-700 text-center">Loading AuraSense Data...</p>
+      <p id="latest-error" class="text-xl text-red-700 text-center hidden"></p>
+      <div id="latest-data-display" class="hidden grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-lg">
+        <!-- Data will be dynamically inserted here by JavaScript -->
+      </div>
+      <p id="no-latest-data" class="text-center text-gray-600 hidden">No live data available yet. Please ensure your Arduino is sending data.</p>
+    </div>
+  </section>
+
+  <!-- Test Email Section -->
+  <section class="mb-12 text-center">
+    <h2 class="text-3xl font-bold text-blue-800 mb-6">Test Email Alerts</h2>
+    <button
+      id="test-email-button"
+      class="px-6 py-3 rounded-full text-lg font-semibold transition duration-200 bg-green-600 text-white shadow-lg hover:bg-green-700"
+    >
+      Send Test Email/SMS
+    </button>
+    <p id="test-email-status" class="mt-3 text-sm font-medium"></p>
+  </section>
+
+  <!-- Historical Readings Section -->
+  <section class="mb-12 flex-grow">
+    <h2 class="text-3xl font-bold text-blue-800 mb-6 text-center">Historical Readings</h2>
+    <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-4xl mx-auto border-t-4 border-indigo-500 overflow-x-auto">
+      <p id="historical-loading" class="text-xl text-gray-700 text-center">Loading Historical Data...</p>
+      <p id="historical-error" class="text-xl text-red-700 text-center hidden"></p>
+      <table id="historical-data-table" class="min-w-full divide-y divide-gray-200 mb-8 hidden">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temp (°F)</th>
+            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Humidity (%)</th>
+            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VOCs</th>
+            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UV Index</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <!-- Historical data will be dynamically inserted here -->
+        </tbody>
+      </table>
+      <p id="no-historical-data" class="text-center text-gray-600 hidden">No historical data available yet.</p>
+    </div>
+  </section>
+
+  <script>
+    // --- Configuration ---
+    // Firebase configuration (using compat versions for global access)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBf4DESTk-boBK6-Q9lDm9ZaknlPiUP4Jg", // Replace with your actual API Key
+      authDomain: "uno-4-57f7c.firebaseapp.com",
+      databaseURL: "https://uno-4-57f7c-default-rtdb.firebaseio.com",
+      projectId: "uno-4-57f7c", // Replace with your actual Project ID
+      storageBucket: "uno-4-57f7c.firebasestorage.app",
+      messagingSenderId: "262060190495",
+      appId: "1:262060190495:web:a2b3067294b6c56f081e2a",
+      measurementId: "G-20BPE0ELXL"
+    };
+
+    // Node.js proxy server details (GitHub Pages will use ngrok URL to reach your local server)
+    const PROXY_SERVER_URL = 'https://fb049-47-164-24-246.ngrok-free.app'; // <--- NGROK URL FILLED IN
+
+    // --- Firebase Initialization ---
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Firestore paths construction
+    const projectId = firebaseConfig.projectId;
+    const latestDocRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('latestReadings').doc('latestAuraSenseReading');
+    const historicalColRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('historicalAuraSenseReadings');
+
+    // --- Helper Functions ---
+    const firestoreTimestampToLocalDate = (timestamp) => {
+      if (timestamp && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+        return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+      }
+      return null;
+    };
+
+    const createDataRow = (label, value, iconHtml) => `
+      <div class="flex items-center space-x-3 bg-blue-50 p-3 rounded-lg shadow-sm">
+        <span class="text-2xl text-blue-700 flex-shrink-0">${iconHtml}</span>
+        <span class="font-semibold text-blue-800 flex-shrink-0">${label}:</span>
+        <span class="text-gray-700 font-medium flex-grow text-right">${value}</span>
+      </div>
+    `;
+
+    const updateLatestReadings = (data) => {
+      const displayDiv = document.getElementById('latest-data-display');
+      const loadingText = document.getElementById('latest-loading');
+      const errorText = document.getElementById('latest-error');
+      const noDataText = document.getElementById('no-latest-data');
+
+      loadingText.classList.add('hidden');
+      errorText.classList.add('hidden');
+
+      if (data) {
+        displayDiv.innerHTML = `
+          ${createDataRow("Temperature", `${data.tempF?.toFixed(1) || 'N/A'} °F`, "&#x263C;")}
+          ${createDataRow("Humidity", `${data.humidity?.toFixed(0) || 'N/A'} %`, "&#x1F4A7;")}
+          ${createDataRow("VOCs", `${data.gasRaw || 'N/A'} (${data.vocCondition || 'N/A'})`, "&#x1F4A8;")}
+          ${createDataRow("UV Index", `${data.uvIndex?.toFixed(1) || 'N/A'} (${data.uvCondition || 'N/A'})`, "&#x2600;&#xFE0F;")}
+          <div class="md:col-span-2 text-center text-sm text-gray-500 mt-4">
+            Last Updated: ${data.timestamp ? data.timestamp.toLocaleString() : 'N/A'}
+          </div>
+        `;
+        displayDiv.classList.remove('hidden');
+        noDataText.classList.add('hidden');
+      } else {
+        displayDiv.classList.add('hidden');
+        noDataText.classList.remove('hidden');
+      }
+    };
+
+    const updateHistoricalTable = (readings) => {
+      const tableBody = document.querySelector('#historical-data-table tbody');
+      const loadingText = document.getElementById('historical-loading');
+      const errorText = document.getElementById('historical-error');
+      const tableElement = document.getElementById('historical-data-table');
+      const noDataText = document.getElementById('no-historical-data');
+
+      loadingText.classList.add('hidden');
+      errorText.classList.add('hidden');
+      tableBody.innerHTML = ''; 
+
+      if (readings && readings.length > 0) {
+        readings.slice(0, 10).forEach(reading => { 
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-blue-50';
+          row.innerHTML = `
+            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.timestamp ? reading.timestamp.toLocaleString() : 'N/A'}</td>
+            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.tempF?.toFixed(1) || 'N/A'}</td>
+            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.humidity?.toFixed(0) || 'N/A'}</td>
+            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.gasRaw || 'N/A'} (${reading.vocCondition || 'N/A'})</td>
+            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.uvIndex?.toFixed(1) || 'N/A'} (${reading.uvCondition || 'N/A'})</td>
+          `;
+          tableBody.appendChild(row);
+        });
+        tableElement.classList.remove('hidden');
+        noDataText.classList.add('hidden');
+      } else {
+        tableElement.classList.add('hidden');
+        noDataText.classList.remove('hidden');
+      }
+    };
+
+    // --- Firebase Data Fetching ---
+    const setupLatestReadingListener = () => {
+      latestDocRef.onSnapshot((docSnap) => {
+        if (docSnap.exists) {
+          const data = docSnap.data();
+          if (data.timestamp) {
+            data.timestamp = firestoreTimestampToLocalDate(data.timestamp);
+          }
+          updateLatestReadings(data);
+        } else {
+          updateLatestReadings(null); 
+        }
+      }, (err) => {
+        console.error("Error listening to latest reading:", err);
+        document.getElementById('latest-loading').classList.add('hidden');
+        document.getElementById('latest-error').textContent = "Failed to fetch latest data. Check console for details.";
+        document.getElementById('latest-error').classList.remove('hidden');
+      });
+    };
+
+    const fetchHistoricalReadings = async () => {
+      try {
+        const querySnapshot = await historicalColRef.get();
+        const readings = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.timestamp) {
+            data.timestamp = firestoreTimestampToLocalDate(data.timestamp);
+          }
+          readings.push(data);
+        });
+        readings.sort((a, b) => {
+          const tsA = a.timestamp ? a.timestamp.getTime() : 0;
+          const tsB = b.timestamp ? b.timestamp.getTime() : 0;
+          return tsB - tsA; 
+        });
+        updateHistoricalTable(readings);
+      } catch (err) {
+        console.error("Error fetching historical data:", err);
+        document.getElementById('historical-loading').classList.add('hidden');
+        document.getElementById('historical-error').textContent = "Failed to fetch historical data. Check console for details.";
+        document.getElementById('historical-error').classList.remove('hidden');
+      }
+    };
+
+    // --- Test Email Functionality ---
+    const testEmailButton = document.getElementById('test-email-button');
+    const testEmailStatusElement = document.getElementById('test-email-status');
+
+    const handleSendTestEmail = async () => {
+      testEmailButton.disabled = true;
+      testEmailButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+      testEmailButton.classList.remove('bg-green-600', 'text-white', 'shadow-lg', 'hover:bg-green-700');
+      
+      testEmailStatusElement.textContent = 'Sending...';
+      testEmailStatusElement.classList.remove('text-green-700', 'text-red-700');
+
+      try {
+        const response = await fetch(`${PROXY_SERVER_URL}/test-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+          testEmailStatusElement.textContent = data.message || 'Test email sent successfully!';
+          testEmailStatusElement.classList.add('text-green-700');
+        } else {
+          testEmailStatusElement.textContent = data.message || 'Failed to send test email.';
+          testEmailStatusElement.classList.add('text-red-700');
+        }
+      } catch (err) {
+        console.error('Network or server error sending test email:', err);
+        testEmailStatusElement.textContent = `Network error: ${err.message}. Ensure ngrok tunnel and proxy server are running.`;
+        testEmailStatusElement.classList.add('text-red-700');
+      } finally {
+        testEmailButton.disabled = false;
+        testEmailButton.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+        testEmailButton.classList.add('bg-green-600', 'text-white', 'shadow-lg', 'hover:bg-green-700');
+        setTimeout(() => {
+          testEmailStatusElement.textContent = '';
+          testEmailStatusElement.classList.remove('text-green-700', 'text-red-700');
+        }, 5000); 
+      }
+    };
+
+    // --- Event Listeners and Initial Load ---
+    document.addEventListener('DOMContentLoaded', () => {
+      testEmailButton.addEventListener('click', handleSendTestEmail);
+      setupLatestReadingListener();
+      fetchHistoricalReadings();
+      setInterval(fetchHistoricalReadings, 5 * 60 * 1000); 
+    });
+  </script>
+</body>
+</html>
