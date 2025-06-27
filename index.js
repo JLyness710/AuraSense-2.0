@@ -1,14 +1,14 @@
-    // index.js (Google Cloud Run Service - Separate Email/SMS Recipients)
+     // index.js (Google Cloud Run Service - Email Gateway SMS Support)
 
     // --- Import necessary modules ---
     const express = require('express');
-    const sgMail = require('@sendgrid/mail');
-    const twilio = require('twilio');
-    const cors = require('cors');
+    const sgMail = require('@sendgrid/mail'); // SendGrid for emails and email-to-SMS
+    const twilio = require('twilio');     // Twilio for direct SMS (will be bypassed in this setup)
+    const cors = require('cors');         // Required for handling cross-origin requests from your dashboard
 
     // --- Initialize Express Application ---
     const app = express();
-    app.use(express.json());
+    app.use(express.json()); // Middleware to parse incoming JSON payloads
     // Explicitly allow your GitHub Pages domain for CORS
     app.use(cors({
         origin: 'https://jlyness710.github.io', // Your specific GitHub Pages domain
@@ -21,49 +21,56 @@
     const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
     const SENDGRID_VERIFIED_SENDER = process.env.SENDGRID_VERIFIED_SENDER;
 
-    // NEW: Separate recipients for Email and SMS
-    const EMAIL_RECIPIENT = process.env.EMAIL_RECIPIENT;
-    const SMS_RECIPIENT = process.env.SMS_RECIPIENT; // This should be a direct phone number like '+17748137510'
+    const EMAIL_RECIPIENT = process.env.EMAIL_RECIPIENT; // e.g., joshualyness3@gmail.com
+    const SMS_RECIPIENT = process.env.SMS_RECIPIENT;     // e.g., 7748137510@vtext.com
 
+    // Twilio credentials (will be ignored if SMS_RECIPIENT is an email gateway)
     const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
     const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
     const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER; // Your Twilio sending phone number
 
     // --- Helper function to send email alert via SendGrid ---
-    async function sendEmailAlert(apiKey, senderEmail, recipientEmail, subject, htmlBody) {
+    // This function sends an email to the specified recipientEmail.
+    // It is now used for both direct emails and email-to-SMS gateways.
+    async function sendEmail(apiKey, senderEmail, recipientEmail, subject, bodyContent, isHtml = true) {
       if (!apiKey || !senderEmail || !recipientEmail) {
-        console.error("SendGrid is not fully configured for email alert. Missing API key, sender, or recipient.");
+        console.error("SendGrid config missing for email. Skipping.");
         return { success: false, message: 'SendGrid config missing.' };
       }
 
       sgMail.setApiKey(apiKey);
 
       const msg = {
-        to: recipientEmail, // Use the specific email recipient
+        to: recipientEmail,
         from: senderEmail,
         subject: subject,
-        html: htmlBody,
       };
+
+      if (isHtml) {
+          msg.html = bodyContent;
+      } else {
+          msg.text = bodyContent; // For plain text (like SMS gateway emails)
+      }
 
       try {
         await sgMail.send(msg);
-        console.log('SendGrid Email alert sent successfully!');
-        return { success: true, message: 'Email sent' };
+        console.log(`Email sent successfully to ${recipientEmail}!`);
+        return { success: true, message: `Email sent to ${recipientEmail}` };
       } catch (error) {
-        console.error('Error sending email alert via SendGrid:', error.message);
+        console.error(`Error sending email to ${recipientEmail}:`, error.message);
         if (error.response && error.response.body && error.response.body.errors) {
           console.error('SendGrid API Response Body Errors:', JSON.stringify(error.response.body.errors));
-          return { success: false, message: `SendGrid API Error: ${error.response.body.errors.map(e => e.message).join(', ')}` };
+          return { success: false, message: `SendGrid API Error to ${recipientEmail}: ${error.response.body.errors.map(e => e.message).join(', ')}` };
         }
-        return { success: false, message: `Email failed: ${error.message}` };
+        return { success: false, message: `Email failed to ${recipientEmail}: ${error.message}` };
       }
     }
 
-    // --- Helper function to send SMS alert via Twilio ---
-    async function sendSmsAlert(accountSid, authToken, twilioNumber, recipientPhoneNumber, messageBody) {
+    // --- Helper function to send direct SMS via Twilio (Current setup will skip this) ---
+    async function sendDirectSms(accountSid, authToken, twilioNumber, recipientPhoneNumber, messageBody) {
         if (!accountSid || !authToken || !twilioNumber || !recipientPhoneNumber) {
-            console.error("Twilio credentials are not fully set. Skipping SMS.");
-            return { success: false, message: "Twilio config missing." };
+            console.warn("Twilio credentials for direct SMS are not fully set. Skipping direct SMS.");
+            return { success: false, message: "Twilio config missing or incomplete." };
         }
 
         const client = new twilio(accountSid, authToken);
@@ -71,21 +78,18 @@
         try {
             await client.messages.create({
                 body: messageBody,
-                to: recipientPhoneNumber, // Use the specific SMS recipient phone number
+                to: recipientPhoneNumber,
                 from: twilioNumber
             });
-            console.log('Twilio SMS alert sent successfully!');
-            return { success: true, message: 'SMS sent' };
+            console.log(`Twilio SMS sent successfully to ${recipientPhoneNumber}!`);
+            return { success: true, message: `SMS sent to ${recipientPhoneNumber}` };
         } catch (error) {
-            console.error('Error sending SMS alert via Twilio:', error.message);
+            console.error(`Error sending Twilio SMS to ${recipientPhoneNumber}:`, error.message);
             if (error.code) {
                 console.error(`Twilio Error Code: ${error.code}`);
-                return { success: false, message: `Twilio API Error (${error.code}): ${error.message}` };
+                return { success: false, message: `Twilio API Error (${error.code}) to ${recipientPhoneNumber}: ${error.message}` };
             }
-            if (error.moreInfo) {
-                console.error('Twilio more info:', error.moreInfo);
-            }
-            return { success: false, message: `SMS failed: ${error.message}` };
+            return { success: false, message: `SMS failed to ${recipientPhoneNumber}: ${error.message}` };
         }
     }
 
@@ -100,8 +104,8 @@
             return res.status(400).json({ error: 'Missing environmental data in request body.' });
         }
 
-        let emailResult = { success: false, message: 'Email not attempted.' };
-        let smsResult = { success: false, message: 'SMS not attempted.' };
+        let emailAlertResult = { success: false, message: 'Primary email not attempted.' };
+        let smsAlertResult = { success: false, message: 'SMS not attempted.' };
 
         // Prepare dynamic content for the alerts
         const alertSubject = 'AuraSense Environmental Alert!';
@@ -117,52 +121,77 @@
             <p>Please check your AuraSense Dashboard for more details.</p>
             <p><em>This is an automated alert from your AuraSense Environmental Monitor.</em></p>
         `;
-        const alertSmsBody = `AuraSense Alert:\nTemp: ${temp}°F, Humidity: ${humidity}%, VOC: ${vocCondition}, UV: ${uvIndex}. Check dashboard.`;
+        const alertSmsPlainTextBody = `AuraSense Alert:\nTemp: ${temp}°F, Humidity: ${humidity}%, VOC: ${vocCondition}, UV: ${uvIndex}. Check dashboard.`;
 
-        // Attempt to send email using EMAIL_RECIPIENT
+
+        // 1. Attempt to send primary email using EMAIL_RECIPIENT
         if (SENDGRID_API_KEY && SENDGRID_VERIFIED_SENDER && EMAIL_RECIPIENT) {
-            console.log("Attempting to send email...");
-            emailResult = await sendEmailAlert(
+            console.log(`Attempting to send primary email to: ${EMAIL_RECIPIENT}`);
+            emailAlertResult = await sendEmail(
                 SENDGRID_API_KEY,
                 SENDGRID_VERIFIED_SENDER,
-                EMAIL_RECIPIENT, // Use EMAIL_RECIPIENT here
+                EMAIL_RECIPIENT,
                 alertSubject,
-                alertHtmlBody
+                alertHtmlBody,
+                true // isHtml = true for primary email
             );
         } else {
-            emailResult.message = "Email configuration or EMAIL_RECIPIENT missing. Skipping email.";
-            console.warn(emailResult.message);
+            emailAlertResult.message = "Primary email config (API key/sender/recipient) missing. Skipping primary email.";
+            console.warn(emailAlertResult.message);
         }
 
-        // Attempt to send SMS using SMS_RECIPIENT
-        if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER && SMS_RECIPIENT) {
-            console.log("Attempting to send SMS...");
-            smsResult = await sendSmsAlert(
-                TWILIO_ACCOUNT_SID,
-                TWILIO_AUTH_TOKEN,
-                TWILIO_PHONE_NUMBER,
-                SMS_RECIPIENT, // Use SMS_RECIPIENT here
-                alertSmsBody
-            );
+        // 2. Attempt to send SMS using SMS_RECIPIENT (via email gateway or direct Twilio)
+        // Check if SMS_RECIPIENT is an email address (indicating an email-to-SMS gateway)
+        const isSmsRecipientEmailGateway = SMS_RECIPIENT && SMS_RECIPIENT.includes('@');
+
+        if (isSmsRecipientEmailGateway) {
+            // If it's an email gateway, use SendGrid to send an email (plain text recommended for SMS gateways)
+            if (SENDGRID_API_KEY && SENDGRID_VERIFIED_SENDER && SMS_RECIPIENT) {
+                console.log(`Attempting to send SMS via email gateway to: ${SMS_RECIPIENT}`);
+                smsAlertResult = await sendEmail( // Call the sendEmail function again
+                    SENDGRID_API_KEY,
+                    SENDGRID_VERIFIED_SENDER,
+                    SMS_RECIPIENT, // Send to the gateway address
+                    "AuraSense SMS Alert", // A simpler subject for SMS
+                    alertSmsPlainTextBody, // Send plain text for SMS gateways
+                    false // isHtml = false for plain text
+                );
+            } else {
+                smsAlertResult.message = "SendGrid config or SMS_RECIPIENT (gateway) missing. Skipping email gateway SMS.";
+                console.warn(smsAlertResult.message);
+            }
         } else {
-            smsResult.message = "Twilio configuration or SMS_RECIPIENT missing. Skipping SMS.";
-            console.warn(smsResult.message);
+            // If it's not an email gateway, attempt to send via Twilio (if configured)
+            if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER && SMS_RECIPIENT) {
+                console.log(`Attempting to send direct SMS via Twilio to: ${SMS_RECIPIENT}`);
+                smsAlertResult = await sendDirectSms( // Call the sendDirectSms function
+                    TWILIO_ACCOUNT_SID,
+                    TWILIO_AUTH_TOKEN,
+                    TWILIO_PHONE_NUMBER,
+                    SMS_RECIPIENT, // Should be in +1 format for Twilio
+                    alertSmsPlainTextBody
+                );
+            } else {
+                smsAlertResult.message = "Twilio config or SMS_RECIPIENT (direct) missing. Skipping direct SMS.";
+                console.warn(smsAlertResult.message);
+            }
         }
 
-        if (emailResult.success || smsResult.success) {
+        // Send back a combined JSON response to the calling dashboard
+        if (emailAlertResult.success || smsAlertResult.success) {
             res.status(200).json({
                 status: 'success',
                 message: 'Alerts processed.',
-                email: emailResult.message,
-                sms: smsResult.message
+                email: emailAlertResult.message,
+                sms: smsAlertResult.message
             });
             console.log("Alerts processed successfully overall.");
         } else {
             res.status(500).json({
                 status: 'error',
                 message: 'All alerts failed or were not configured.',
-                email: emailResult.message,
-                sms: smsResult.message
+                email: emailAlertResult.message,
+                sms: smsAlertResult.message
             });
             console.error("All alerts failed or were not configured.");
         }
