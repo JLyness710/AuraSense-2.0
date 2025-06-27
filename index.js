@@ -1,26 +1,170 @@
-      // index.js (Google Cloud Run Service)
+     // index.js (Google Cloud Run Service)
 
     // --- Import necessary modules ---
-    const express = require('express'); // Express framework for creating the web server
-    const sgMail = require('@sendgrid/mail'); // SendGrid library for sending emails
-    const twilio = require('twilio'); // Twilio library for sending SMS
-    const cors = require('cors'); // CORS middleware for handling cross-origin requests
+    const express = require('express');
+    const sgMail = require('@sendgrid/mail');
+    const twilio = require('twilio');
+    const cors = require('cors');
 
-    // --- Configuration (from Cloud Run Environment Variables) ---
-    // These environment variables MUST be set in the Cloud Run service settings.
-    // They are accessed via process.env.<VARIABLE_NAME>
-    const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-    const ALERT_SENDER_EMAIL = process.env.SENDGRID_VERIFIED_SENDER; // Verified sender email in SendGrid
-    const ALERT_RECIPIENT = process.env.ALERT_RECIPIENT; // Recipient for emails/SMS
+    const app = express();
+    app.use(express.json());
+    app.use(cors({
+        origin: 'https://jlyness710.github.io', // Explicitly allow your GitHub Pages domain
+        methods: ['POST'],
+        allowedHeaders: ['Content-Type']
+    }));
 
-    const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-    const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-    const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER; // Your Twilio phone number
+    // --- Helper function to send email alert via SendGrid ---
+    // Now takes sender, recipient, and API key as arguments
+    async function sendEmailAlert(apiKey, senderEmail, recipient, subject, text) {
+      if (!apiKey || !senderEmail || !recipient) {
+        console.error("SendGrid is not fully configured for email alert within sendEmailAlert.");
+        return { success: false, message: 'SendGrid config missing.' };
+      }
 
-    // --- Initialize SendGrid ---
-    if (!SENDGRID_API_KEY) {
-        console.error("ERROR: SENDGRID_API_KEY is not set in Cloud Run environment!");
-    } else {
+      sgMail.setApiKey(apiKey); // Ensure API key is set for each call if needed (robustness)
+
+      const msg = {
+        to: recipient,
+        from: senderEmail,
+        subject: subject,
+        text: text,
+      };
+
+      try {
+        await sgMail.send(msg);
+        console.log('Email alert sent successfully!');
+        return { success: true, message: 'Email sent' };
+      } catch (error) {
+        console.error('Error sending email alert:', error.response ? error.response.body : error);
+        return { success: false, message: `Email failed: ${error.message}` };
+      }
+    }
+
+    // --- Helper function to send SMS alert via Twilio ---
+    // Now takes Twilio credentials and recipient as arguments
+    async function sendSmsAlert(accountSid, authToken, twilioNumber, recipient, messageBody) {
+        if (!accountSid || !authToken || !twilioNumber || !recipient) {
+            console.error("Twilio credentials are not fully set within sendSmsAlert. Skipping SMS.");
+            return { success: false, message: "Twilio config missing." };
+        }
+
+        const client = new twilio(accountSid, authToken);
+
+        try {
+            await client.messages.create({
+                body: messageBody,
+                to: recipient,
+                from: twilioNumber
+            });
+            console.log('SMS alert sent successfully!');
+            return { success: true, message: 'SMS sent' };
+        } catch (error) {
+            console.error('Error sending SMS alert:', error.message);
+            if (error.moreInfo) {
+                console.error('Twilio more info:', error.moreInfo);
+            }
+            return { success: false, message: `SMS failed: ${error.message}` };
+        }
+    }
+
+    // --- Cloud Run Service Endpoint ---
+    app.post('/test-email-sms', async (req, res) => {
+        console.log("Received request to /test-email-sms");
+
+        // Access environment variables directly inside the request handler
+        const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+        const SENDGRID_VERIFIED_SENDER = process.env.SENDGRID_VERIFIED_SENDER;
+        const ALERT_RECIPIENT = process.env.ALERT_RECIPIENT;
+
+        const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+        const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+        const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+        const { temp, humidity, vocCondition, uvIndex } = req.body;
+
+        if (!temp || !humidity || !vocCondition || !uvIndex) {
+            return res.status(400).json({ error: 'Missing environmental data in request body.' });
+        }
+
+        let emailResult = { success: false, message: 'Email not attempted.' };
+        let smsResult = { success: false, message: 'SMS not attempted.' };
+
+        // Prepare content for alerts
+        const emailSubject = 'AuraSense Environmental Alert!';
+        const emailHtmlBody = `
+            <p><strong>AuraSense System Alert:</strong></p>
+            <p>Environmental conditions detected beyond normal parameters or for testing purposes:</p>
+            <ul>
+                <li>Temperature: ${temp} &deg;F</li>
+                <li>Humidity: ${humidity} %</li>
+                <li>VOC Condition: ${vocCondition}</li>
+                <li>UV Index: ${uvIndex}</li>
+            </ul>
+            <p>Please check your AuraSense Dashboard for more details.</p>
+            <p><em>This is an automated alert from your AuraSense Environmental Monitor.</em></p>
+        `;
+        const smsMessageBody = `AuraSense Alert:\nTemp: ${temp}°F, Humidity: ${humidity}%, VOC: ${vocCondition}, UV: ${uvIndex}. Check dashboard.`;
+
+
+        // Attempt to send email
+        if (SENDGRID_API_KEY && SENDGRID_VERIFIED_SENDER && ALERT_RECIPIENT) {
+            emailResult = await sendEmailAlert(
+                SENDGRID_API_KEY,
+                SENDGRID_VERIFIED_SENDER,
+                ALERT_RECIPIENT,
+                emailSubject,
+                emailHtmlBody
+            );
+        } else {
+            emailResult.message = "Email configuration missing in environment variables. Skipping email.";
+            console.warn(emailResult.message);
+        }
+
+        // Attempt to send SMS
+        if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER && ALERT_RECIPIENT) {
+            smsResult = await sendSmsAlert(
+                TWILIO_ACCOUNT_SID,
+                TWILIO_AUTH_TOKEN,
+                TWILIO_PHONE_NUMBER,
+                ALERT_RECIPIENT,
+                smsMessageBody
+            );
+        } else {
+            smsResult.message = "Twilio configuration missing in environment variables. Skipping SMS.";
+            console.warn(smsResult.message);
+        }
+
+        if (emailResult.success || smsResult.success) {
+            res.status(200).json({
+                message: 'Alerts processed.',
+                email: emailResult.message,
+                sms: smsResult.message
+            });
+        } else {
+            res.status(500).json({
+                message: 'All alerts failed or were not configured.',
+                email: emailResult.message,
+                sms: smsResult.message
+            });
+        }
+    });
+
+    // Root endpoint for health check or basic info
+    app.get('/', (req, res) => {
+        res.status(200).send('AuraSense Alert Service is running. Use /test-email-sms for alerts.');
+    });
+
+    // IMPORTANT: For Cloud Run, you need to listen on process.env.PORT
+    const port = process.env.PORT || 8080;
+    app.listen(port, () => {
+        console.log(`AuraSense Alert Service listening on port ${port}`);
+    });
+
+    // This line is added to explicitly export the Express app itself for Cloud Functions/Run
+    // This allows the platform to find a 'function' even though it's an Express server.
+    exports.helloHttp = app;
+    
         sgMail.setApiKey(SENDGRID_API_KEY);
     }
 
