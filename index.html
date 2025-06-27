@@ -4,21 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AuraSense Dashboard</title>
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS CDN for styling -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts for Inter -->
+  <!-- Google Fonts for Inter typeface -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
+    /* Basic styling for the body and font */
     body {
       font-family: 'Inter', sans-serif;
       margin: 0;
-      min-height: 100vh; 
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
   </style>
-  
+
   <!-- Firebase CDNs (Core App and Firestore) -->
+  <!-- These are used to connect to your Firebase project and fetch data -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
@@ -26,6 +28,7 @@
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 text-gray-800">
   <noscript>You need to enable JavaScript to run this app.</noscript>
 
+  <!-- Header Section -->
   <header class="text-center mb-8">
     <h1 class="text-4xl sm:text-5xl font-extrabold text-blue-900 drop-shadow-md">AuraSense Dashboard</h1>
     <p class="text-md sm:text-lg text-blue-700 mt-2">Real-time Environmental Monitoring</p>
@@ -82,7 +85,7 @@
 
   <script>
     // --- Configuration ---
-    // Firebase configuration (using compat versions for global access)
+    // Firebase configuration for connecting to your Firestore database
     const firebaseConfig = {
       apiKey: "AIzaSyBf4DESTk-boBK6-Q9lDm9ZaknlPiUP4Jg", // Replace with your actual API Key
       authDomain: "uno-4-57f7c.firebaseapp.com",
@@ -94,29 +97,35 @@
       measurementId: "G-20BPE0ELXL"
     };
 
-    // Node.js proxy server details (GitHub Pages will use ngrok URL to reach your local server)
-    const PROXY_SERVER_URL = 'https://434a-47-164-24-246.ngrok-free.app'; // <--- CORRECTED NGROK URL
+    // Google Cloud Run Service URL for sending test emails/SMS
+    // THIS IS THE CRITICAL LINE UPDATED WITH YOUR LIVE CLOUD RUN SERVICE URL
+    const PROXY_SERVER_URL = 'https://send-aurasense-alert-262060190495.us-east1.run.app';
 
     // --- Firebase Initialization ---
+    // Initialize the Firebase app and get a reference to the Firestore database
     const app = firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Firestore paths construction
+    // Construct Firestore paths to your 'latestReadings' and 'historicalReadings' collections
     const projectId = firebaseConfig.projectId;
     const latestDocRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('latestReadings').doc('latestAuraSenseReading');
     const historicalColRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('historicalAuraSenseReadings');
 
     // --- Helper Functions ---
+
+    // Converts Firestore Timestamps to JavaScript Date objects for display
     const firestoreTimestampToLocalDate = (timestamp) => {
       if (timestamp && typeof timestamp.toDate === 'function') {
         return timestamp.toDate();
       }
       if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+        // Convert Firestore timestamp to milliseconds and then to a Date object
         return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
       }
-      return null;
+      return null; // Return null if timestamp is invalid or not provided
     };
 
+    // Creates an HTML div element for displaying a single data row (e.g., Temperature: 70°F)
     const createDataRow = (label, value, iconHtml) => `
       <div class="flex items-center space-x-3 bg-blue-50 p-3 rounded-lg shadow-sm">
         <span class="text-2xl text-blue-700 flex-shrink-0">${iconHtml}</span>
@@ -125,16 +134,19 @@
       </div>
     `;
 
+    // Updates the "Latest Readings" section of the dashboard with fetched data
     const updateLatestReadings = (data) => {
       const displayDiv = document.getElementById('latest-data-display');
       const loadingText = document.getElementById('latest-loading');
       const errorText = document.getElementById('latest-error');
       const noDataText = document.getElementById('no-latest-data');
 
+      // Hide loading/error messages
       loadingText.classList.add('hidden');
       errorText.classList.add('hidden');
 
       if (data) {
+        // Populate the display div with dynamic data rows
         displayDiv.innerHTML = `
           ${createDataRow("Temperature", `${data.tempF?.toFixed(1) || 'N/A'} °F`, "&#x263C;")}
           ${createDataRow("Humidity", `${data.humidity?.toFixed(0) || 'N/A'} %`, "&#x1F4A7;")}
@@ -144,14 +156,15 @@
             Last Updated: ${data.timestamp ? data.timestamp.toLocaleString() : 'N/A'}
           </div>
         `;
-        displayDiv.classList.remove('hidden');
-        noDataText.classList.add('hidden');
+        displayDiv.classList.remove('hidden'); // Show the data display
+        noDataText.classList.add('hidden');    // Hide the "no data" message
       } else {
-        displayDiv.classList.add('hidden');
-        noDataText.classList.remove('hidden');
+        displayDiv.classList.add('hidden');   // Hide the data display
+        noDataText.classList.remove('hidden'); // Show the "no data" message
       }
     };
 
+    // Updates the "Historical Readings" table with fetched data
     const updateHistoricalTable = (readings) => {
       const tableBody = document.querySelector('#historical-data-table tbody');
       const loadingText = document.getElementById('historical-loading');
@@ -159,14 +172,23 @@
       const tableElement = document.getElementById('historical-data-table');
       const noDataText = document.getElementById('no-historical-data');
 
+      // Hide loading/error messages and clear existing table rows
       loadingText.classList.add('hidden');
       errorText.classList.add('hidden');
-      tableBody.innerHTML = ''; 
+      tableBody.innerHTML = '';
 
       if (readings && readings.length > 0) {
-        readings.slice(0, 10).forEach(reading => { 
+        // Sort readings by timestamp in descending order (latest first)
+        readings.sort((a, b) => {
+          const tsA = a.timestamp ? a.timestamp.getTime() : 0;
+          const tsB = b.timestamp ? b.timestamp.getTime() : 0;
+          return tsB - tsA;
+        });
+        
+        // Take only the latest 10 readings for display
+        readings.slice(0, 10).forEach(reading => {
           const row = document.createElement('tr');
-          row.className = 'hover:bg-blue-50';
+          row.className = 'hover:bg-blue-50'; // Add hover effect to rows
           row.innerHTML = `
             <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.timestamp ? reading.timestamp.toLocaleString() : 'N/A'}</td>
             <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.tempF?.toFixed(1) || 'N/A'}</td>
@@ -174,27 +196,30 @@
             <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.gasRaw || 'N/A'} (${reading.vocCondition || 'N/A'})</td>
             <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.uvIndex?.toFixed(1) || 'N/A'} (${reading.uvCondition || 'N/A'})</td>
           `;
-          tableBody.appendChild(row);
+          tableBody.appendChild(row); // Add row to the table body
         });
-        tableElement.classList.remove('hidden');
-        noDataText.classList.add('hidden');
+        tableElement.classList.remove('hidden'); // Show the table
+        noDataText.classList.add('hidden');      // Hide the "no data" message
       } else {
-        tableElement.classList.add('hidden');
-        noDataText.classList.remove('hidden');
+        tableElement.classList.add('hidden');   // Hide the table
+        noDataText.classList.remove('hidden'); // Show the "no data" message
       }
     };
 
     // --- Firebase Data Fetching ---
+
+    // Sets up a real-time listener for the latest reading document in Firestore
     const setupLatestReadingListener = () => {
       latestDocRef.onSnapshot((docSnap) => {
         if (docSnap.exists) {
           const data = docSnap.data();
+          // Convert Firestore timestamp to local date for display
           if (data.timestamp) {
             data.timestamp = firestoreTimestampToLocalDate(data.timestamp);
           }
-          updateLatestReadings(data);
+          updateLatestReadings(data); // Update the UI with the latest data
         } else {
-          updateLatestReadings(null); 
+          updateLatestReadings(null); // No latest data found
         }
       }, (err) => {
         console.error("Error listening to latest reading:", err);
@@ -204,23 +229,20 @@
       });
     };
 
+    // Fetches historical readings from Firestore (called periodically)
     const fetchHistoricalReadings = async () => {
       try {
         const querySnapshot = await historicalColRef.get();
         const readings = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
+          // Convert Firestore timestamp to local date for display
           if (data.timestamp) {
             data.timestamp = firestoreTimestampToLocalDate(data.timestamp);
           }
           readings.push(data);
         });
-        readings.sort((a, b) => {
-          const tsA = a.timestamp ? a.timestamp.getTime() : 0;
-          const tsB = b.timestamp ? b.timestamp.getTime() : 0;
-          return tsB - tsA; 
-        });
-        updateHistoricalTable(readings);
+        updateHistoricalTable(readings); // Update the UI with historical data
       } catch (err) {
         console.error("Error fetching historical data:", err);
         document.getElementById('historical-loading').classList.add('hidden');
@@ -229,55 +251,91 @@
       }
     };
 
-    // --- Test Email Functionality ---
+    // --- Test Email/SMS Functionality ---
+
     const testEmailButton = document.getElementById('test-email-button');
     const testEmailStatusElement = document.getElementById('test-email-status');
 
+    // Handles the click event for the "Send Test Email/SMS" button
     const handleSendTestEmail = async () => {
+      // Disable button and show sending status
       testEmailButton.disabled = true;
       testEmailButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
       testEmailButton.classList.remove('bg-green-600', 'text-white', 'shadow-lg', 'hover:bg-green-700');
-      
-      testEmailStatusElement.textContent = 'Sending...';
+
+      testEmailStatusElement.textContent = 'Sending test alert...';
       testEmailStatusElement.classList.remove('text-green-700', 'text-red-700');
 
       try {
-        const response = await fetch(`${PROXY_SERVER_URL}/test-email`, {
+        // Fetch current latest readings to send as test data
+        const latestDocSnap = await latestDocRef.get();
+        let testData = {
+          temp: 0, humidity: 0, gasRaw: 0, vocCondition: 'N/A', uvIndex: 0, uvCondition: 'N/A'
+        };
+
+        if (latestDocSnap.exists) {
+          const data = latestDocSnap.data();
+          testData = {
+            temp: data.tempF?.toFixed(1) || 'N/A',
+            humidity: data.humidity?.toFixed(0) || 'N/A',
+            gasRaw: data.gasRaw || 'N/A',
+            vocCondition: data.vocCondition || 'N/A',
+            uvIndex: data.uvIndex?.toFixed(1) || 'N/A',
+            uvCondition: data.uvCondition || 'N/A'
+          };
+        } else {
+            console.warn("No latest data available for test alert. Sending placeholder values.");
+            testData = {
+                temp: 70.0, humidity: 50, gasRaw: 100, vocCondition: 'Normal', uvIndex: 1.0, uvCondition: 'Low'
+            };
+        }
+
+        // Make a POST request to your Cloud Run service
+        const response = await fetch(`${PROXY_SERVER_URL}/test-email-sms`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ // Send current environmental data for the alert
+            temp: testData.temp,
+            humidity: testData.humidity,
+            vocCondition: testData.vocCondition,
+            uvIndex: testData.uvIndex,
+            uvCondition: testData.uvCondition
+          })
         });
+
         const data = await response.json();
 
         if (response.ok) {
-          testEmailStatusElement.textContent = data.message || 'Test email sent successfully!';
+          testEmailStatusElement.textContent = data.message || 'Test alert sent successfully!';
           testEmailStatusElement.classList.add('text-green-700');
         } else {
-          testEmailStatusElement.textContent = data.message || 'Failed to send test email.';
+          testEmailStatusElement.textContent = data.message || 'Failed to send test alert.';
           testEmailStatusElement.classList.add('text-red-700');
         }
       } catch (err) {
-        console.error('Network or server error sending test email:', err);
-        testEmailStatusElement.textContent = `Network error: ${err.message}. Ensure ngrok tunnel and proxy server are running.`;
+        console.error('Network or server error sending test alert:', err);
+        testEmailStatusElement.textContent = `Network error: ${err.message}. Ensure Cloud Run service is running and accessible.`;
         testEmailStatusElement.classList.add('text-red-700');
       } finally {
+        // Re-enable button and clear status after a delay
         testEmailButton.disabled = false;
         testEmailButton.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
         testEmailButton.classList.add('bg-green-600', 'text-white', 'shadow-lg', 'hover:bg-green-700');
         setTimeout(() => {
           testEmailStatusElement.textContent = '';
           testEmailStatusElement.classList.remove('text-green-700', 'text-red-700');
-        }, 5000); 
+        }, 5000); // Clear message after 5 seconds
       }
     };
 
     // --- Event Listeners and Initial Load ---
     document.addEventListener('DOMContentLoaded', () => {
       testEmailButton.addEventListener('click', handleSendTestEmail);
-      setupLatestReadingListener();
-      fetchHistoricalReadings();
-      setInterval(fetchHistoricalReadings, 5 * 60 * 1000); 
+      setupLatestReadingListener(); // Start listening for real-time latest data
+      fetchHistoricalReadings();     // Fetch historical data once
+      setInterval(fetchHistoricalReadings, 5 * 60 * 1000); // Refresh historical data every 5 minutes
     });
   </script>
 </body>
