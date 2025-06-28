@@ -1,4 +1,4 @@
-// index.js (Google Cloud Run Service - Complete Code with Final Email Design v2)
+// index.js (Google Cloud Run Service - Final Email Wording Update)
 
 // --- Import necessary modules ---
 const express = require('express');
@@ -122,7 +122,6 @@ app.post('/test-email-sms', async (req, res) => {
                             <tr>
                                 <td style="text-align: center; padding: 15px 20px;">
                                     <h1 style="margin: 0; font-size: 24px; color: #FFEB3B; font-weight: bold;">AuraSense Alert</h1>
-                                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #E2E8F0;">Your Environment, Monitored Intelligently</p>
                                 </td>
                             </tr>
                         </table>
@@ -132,10 +131,10 @@ app.post('/test-email-sms', async (req, res) => {
                             <tr>
                                 <td style="padding: 30px; color: #333333; font-size: 14px; line-height: 1.6;">
                                     <p style="margin: 0 0 15px 0; font-size: 18px; font-weight: bold; color: #FF0000;">
-                                        AuraSense System Alert:
+                                        Environmental Alarm
                                     </p>
                                     <p style="margin: 0 0 10px 0; font-size: 14px; color: #555555;">
-                                        Environmental conditions detected beyond normal parameters or for testing purposes:
+                                        Environmental conditions detected for testing purposes:
                                     </p>
                                     <ul style="margin: 0 0 15px 0; padding-left: 20px; list-style-type: disc; color: #555555;">
                                         <li style="margin-bottom: 8px;"><strong>Temperature:</strong> ${temp} &deg;F</li>
