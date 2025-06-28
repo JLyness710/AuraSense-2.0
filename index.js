@@ -1,4 +1,4 @@
-// index.js (Google Cloud Run Service - Complete Code with Stylish Header, Borders, Background)
+// index.js (Google Cloud Run Service - Complete Code with Final Email Design)
 
 // --- Import necessary modules ---
 const express = require('express');
@@ -118,10 +118,10 @@ app.post('/test-email-sms', async (req, res) => {
                 <tr>
                     <td style="padding: 0;">
                         <!-- Header Section -->
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0; background: linear-gradient(to right, #63B3ED, #4299E1); padding: 20px; border-top-left-radius: 10px; border-top-right-radius: 10px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0; background-color: #2D3748; padding: 20px; border-top-left-radius: 10px; border-top-right-radius: 10px;">
                             <tr>
                                 <td style="text-align: center; padding: 15px 20px;">
-                                    <h1 style="margin: 0; font-size: 24px; color: #FFFFFF; font-weight: bold;">AuraSense Alert</h1>
+                                    <h1 style="margin: 0; font-size: 24px; color: #FFEB3B; font-weight: bold;">AuraSense Alert</h1>
                                     <p style="margin: 5px 0 0 0; font-size: 14px; color: #E2E8F0;">Your Environment, Monitored Intelligently</p>
                                 </td>
                             </tr>
@@ -131,7 +131,7 @@ app.post('/test-email-sms', async (req, res) => {
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0;">
                             <tr>
                                 <td style="padding: 30px; color: #333333; font-size: 14px; line-height: 1.6;">
-                                    <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #2D3748;">
+                                    <p style="margin: 0 0 15px 0; font-size: 18px; font-weight: bold; color: #FF0000;">
                                         AuraSense System Alert:
                                     </p>
                                     <p style="margin: 0 0 10px 0; font-size: 14px; color: #555555;">
@@ -145,9 +145,6 @@ app.post('/test-email-sms', async (req, res) => {
                                     </ul>
                                     <p style="margin: 0 0 20px 0; font-size: 14px; color: #555555;">
                                         Please check your <a href="https://jlyness710.github.io/AuraSense-2.0/" style="color: #4299E1; text-decoration: none; font-weight: 500;">AuraSense Dashboard</a> for more details.
-                                    </p>
-                                    <p style="margin: 0; font-size: 12px; color: #777777; font-style: italic;">
-                                        This is an automated alert from your AuraSense Environmental Monitor.
                                     </p>
                                 </td>
                             </tr>
