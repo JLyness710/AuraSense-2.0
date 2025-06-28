@@ -1,4 +1,4 @@
- // index.js (Google Cloud Run Service - Complete Code with Email Footer)
+// index.js (Google Cloud Run Service - Complete Code with Stylish Header, Borders, Background)
 
 // --- Import necessary modules ---
 const express = require('express');
@@ -109,41 +109,68 @@ app.post('/test-email-sms', async (req, res) => {
 
     // Prepare dynamic content for the alerts
     const alertSubject = 'AuraSense Environmental Alert!';
-    const alertHtmlBody = `
-        <p style="font-family: 'Inter', sans-serif; font-size: 16px; color: #333333; line-height: 1.5;">
-            <strong>AuraSense System Alert:</strong>
-        </p>
-        <p style="font-family: 'Inter', sans-serif; font-size: 14px; color: #555555; line-height: 1.5;">
-            Environmental conditions detected beyond normal parameters or for testing purposes:
-        </p>
-        <ul style="font-family: 'Inter', sans-serif; font-size: 14px; color: #555555; line-height: 1.5; list-style-type: disc; margin-left: 20px; padding: 0;">
-            <li style="margin-bottom: 5px;"><strong>Temperature:</strong> ${temp} &deg;F</li>
-            <li style="margin-bottom: 5px;"><strong>Humidity:</strong> ${humidity} %</li>
-            <li style="margin-bottom: 5px;"><strong>VOC Condition:</strong> ${vocCondition}</li>
-            <li style="margin-bottom: 5px;"><strong>UV Index:</strong> ${uvIndex} (${uvCondition || 'N/A'})</li>
-        </ul>
-        <p style="font-family: 'Inter', sans-serif; font-size: 14px; color: #555555; line-height: 1.5;">
-            Please check your AuraSense Dashboard for more details.
-        </p>
-        <p style="font-family: 'Inter', sans-serif; font-size: 12px; color: #777777; line-height: 1.5; font-style: italic;">
-            This is an automated alert from your AuraSense Environmental Monitor.
-        </p>
 
-        <!-- BEGIN CUSTOM EMAIL FOOTER -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 20px; max-width: 600px; margin-left: auto; margin-right: auto; border-spacing: 0;">
-            <tr>
-                <td style="padding: 20px; background-color: #2D3748; border-radius: 10px; color: #E2E8F0; font-family: 'Inter', sans-serif; font-size: 12px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-                    <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #A7F3D0;">AuraSense Dashboard</p>
-                    <p style="margin: 0 0 5px 0;">
-                        <a href="https://jlyness710.github.io/AuraSense-2.0/" style="color: #63B3ED; text-decoration: none; font-weight: 500;">Visit Your Dashboard</a>
-                    </p>
-                    <p style="margin: 0 0 5px 0;">&copy; 2025 AuraSense. All rights reserved.</p>
-                    <p style="margin: 5px 0 0 0; color: #CBD5E0;">This is an automated alert. Please do not reply to this email.</p>
-                    <p style="margin: 5px 0 0 0; color: #9CA3AF;">Your environment, intelligently monitored.</p>
-                </td>
-            </tr>
-        </table>
-        <!-- END CUSTOM EMAIL FOOTER -->
+    // --- Email HTML Body Structure ---
+    // Wrapped in a main table for overall background and structure.
+    const alertHtmlBody = `
+        <div style="background-color: #F7FAFC; padding: 20px 0; font-family: 'Inter', sans-serif;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; border-spacing: 0; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);">
+                <tr>
+                    <td style="padding: 0;">
+                        <!-- Header Section -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0; background: linear-gradient(to right, #63B3ED, #4299E1); padding: 20px; border-top-left-radius: 10px; border-top-right-radius: 10px;">
+                            <tr>
+                                <td style="text-align: center; padding: 15px 20px;">
+                                    <h1 style="margin: 0; font-size: 24px; color: #FFFFFF; font-weight: bold;">AuraSense Alert</h1>
+                                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #E2E8F0;">Your Environment, Monitored Intelligently</p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Main Content Section -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0;">
+                            <tr>
+                                <td style="padding: 30px; color: #333333; font-size: 14px; line-height: 1.6;">
+                                    <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #2D3748;">
+                                        AuraSense System Alert:
+                                    </p>
+                                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #555555;">
+                                        Environmental conditions detected beyond normal parameters or for testing purposes:
+                                    </p>
+                                    <ul style="margin: 0 0 15px 0; padding-left: 20px; list-style-type: disc; color: #555555;">
+                                        <li style="margin-bottom: 8px;"><strong>Temperature:</strong> ${temp} &deg;F</li>
+                                        <li style="margin-bottom: 8px;"><strong>Humidity:</strong> ${humidity} %</li>
+                                        <li style="margin-bottom: 8px;"><strong>VOC Condition:</strong> ${vocCondition}</li>
+                                        <li style="margin-bottom: 8px;"><strong>UV Index:</strong> ${uvIndex} (${uvCondition || 'N/A'})</li>
+                                    </ul>
+                                    <p style="margin: 0 0 20px 0; font-size: 14px; color: #555555;">
+                                        Please check your <a href="https://jlyness710.github.io/AuraSense-2.0/" style="color: #4299E1; text-decoration: none; font-weight: 500;">AuraSense Dashboard</a> for more details.
+                                    </p>
+                                    <p style="margin: 0; font-size: 12px; color: #777777; font-style: italic;">
+                                        This is an automated alert from your AuraSense Environmental Monitor.
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Footer Section -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0; background-color: #2D3748; padding: 20px; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
+                            <tr>
+                                <td style="text-align: center; color: #E2E8F0; font-size: 12px;">
+                                    <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #A7F3D0;">AuraSense Dashboard</p>
+                                    <p style="margin: 0 0 5px 0;">
+                                        <a href="https://jlyness710.github.io/AuraSense-2.0/" style="color: #63B3ED; text-decoration: none; font-weight: 500;">Visit Your Dashboard</a>
+                                    </p>
+                                    <p style="margin: 0 0 5px 0;">&copy; 2025 AuraSense. All rights reserved.</p>
+                                    <p style="margin: 5px 0 0 0; color: #CBD5E0;">This is an automated alert. Please do not reply to this email.</p>
+                                    <p style="margin: 5px 0 0 0; color: #9CA3AF;">Your environment, intelligently monitored.</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
     `;
     const alertSmsPlainTextBody = `AuraSense Alert:\nTemp: ${temp}°F, Humidity: ${humidity}%, VOC: ${vocCondition}, UV: ${uvIndex}. Check dashboard.`;
 
