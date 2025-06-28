@@ -1,4 +1,4 @@
-// index.js (Google Cloud Run Service - Complete Code with Final Email Design)
+// index.js (Google Cloud Run Service - Complete Code with Final Email Design v2)
 
 // --- Import necessary modules ---
 const express = require('express');
@@ -154,7 +154,7 @@ app.post('/test-email-sms', async (req, res) => {
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-spacing: 0; background-color: #2D3748; padding: 20px; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
                             <tr>
                                 <td style="text-align: center; color: #E2E8F0; font-size: 12px;">
-                                    <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #A7F3D0;">AuraSense Dashboard</p>
+                                    <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #A7F3D0;">AuraSense</p>
                                     <p style="margin: 0 0 5px 0;">
                                         <a href="https://jlyness710.github.io/AuraSense-2.0/" style="color: #63B3ED; text-decoration: none; font-weight: 500;">Visit Your Dashboard</a>
                                     </p>
