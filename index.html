@@ -1,342 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AuraSense Dashboard</title>
-  <!-- Tailwind CSS CDN for styling -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts for Inter typeface -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    /* Basic styling for the body and font */
-    body {
-      font-family: 'Inter', sans-serif;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraSense Dashboard</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Inter typeface -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for graphing -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f0f2f5;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
 
-  <!-- Firebase CDNs (Core App and Firestore) -->
-  <!-- These are used to connect to your Firebase project and fetch data -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase CDNs (Core App, Firestore, and AUTH) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 text-gray-800">
-  <noscript>You need to enable JavaScript to run this app.</noscript>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center antialiased">
+    <!-- EvoCore Aesthetic Header -->
+    <header class="w-full bg-[#1a3a2a] py-4 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <!-- EvoCore Logo (placeholder if you have one) -->
+                <img src="https://placehold.co/40x40/1a3a2a/ffffff?text=EC" alt="EvoCore Logo" class="h-10 w-10 rounded-full border-2 border-[#6ee7b7] hidden sm:block">
+                <span class="text-white text-2xl font-extrabold tracking-tight">EvoCore</span>
+                <span class="text-gray-400 text-lg">|</span>
+                <span class="text-white text-2xl font-bold tracking-tight">AuraSense Dashboard</span>
+            </div>
+            <!-- Example Nav Links (can be expanded if needed) -->
+            <nav class="hidden md:flex space-x-6">
+                <a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">About EvoCore</a>
+                <a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">Other Projects</a>
+                <a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">Contact</a>
+            </nav>
+        </div>
+    </header>
 
-  <!-- Header Section -->
-  <header class="text-center mb-8">
-    <h1 class="text-4xl sm:text-5xl font-extrabold text-blue-900 drop-shadow-md">AuraSense Dashboard</h1>
-    <p class="text-md sm:text-lg text-blue-700 mt-2">Real-time Environmental Monitoring</p>
-  </header>
+    <div class="bg-white rounded-2xl shadow-xl p-8 max-w-6xl w-full mx-auto mt-8 mb-8 transform transition-all duration-300 hover:shadow-2xl">
 
-  <!-- Latest Readings Section -->
-  <section class="mb-12">
-    <h2 class="text-3xl font-bold text-blue-800 mb-6 text-center">Latest Readings</h2>
-    <div id="latest-readings-container" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-2xl mx-auto border-t-4 border-blue-500">
-      <p id="latest-loading" class="text-xl text-gray-700 text-center">Loading AuraSense Data...</p>
-      <p id="latest-error" class="text-xl text-red-700 text-center hidden"></p>
-      <div id="latest-data-display" class="hidden grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-lg">
-        <!-- Data will be dynamically inserted here by JavaScript -->
-      </div>
-      <p id="no-latest-data" class="text-center text-gray-600 hidden">No live data available yet. Please ensure your Arduino is sending data.</p>
+        <!-- User ID Display (Authenticating Bar - now green) -->
+        <div id="user-id-display" class="text-center text-sm text-[#1a3a2a] mb-8 p-3 bg-[#e0f2f1] rounded-lg border border-[#a7d9d5] shadow-inner font-mono">
+            Authenticating...
+        </div>
+
+        <!-- Current Readings Section -->
+        <div class="mb-12 p-8 bg-gradient-to-br from-[#e0f2f1] to-[#c8e6c9] rounded-xl border border-[#a7d9d5] shadow-md">
+            <h2 class="text-3xl font-bold text-[#1a3a2a] mb-6 text-center tracking-wide">Current Environmental Readings</h2>
+            <div id="latest-readings-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                <p id="latest-loading" class="text-xl text-gray-700 text-center col-span-full">Loading AuraSense Data...</p>
+                <p id="latest-error" class="text-xl text-red-700 text-center col-span-full hidden"></p>
+                <p id="no-latest-data" class="text-center text-gray-600 col-span-full hidden">No live data available yet. Please ensure your Arduino is sending data.</p>
+                
+                <!-- This div will contain the actual data, dynamically inserted -->
+                <div id="latest-data-display-content" class="hidden col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <!-- Data will be dynamically inserted here by JavaScript's createDataRow -->
+                </div>
+            </div>
+            <p class="text-right text-gray-500 text-sm mt-6 font-semibold">Last Updated: <span id="last-updated-content">N/A</span></p>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="mb-12 p-8 bg-gray-50 rounded-xl border border-gray-200 shadow-md">
+            <h2 class="text-3xl font-bold text-[#1a3a2a] mb-8 text-center tracking-wide">Historical Data Trends</h2>
+
+            <!-- Date Selection and Variable Toggles -->
+            <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
+                <div class="flex flex-col sm:flex-row items-center gap-4">
+                    <label for="startDate" class="text-gray-700 font-medium">Start Date:</label>
+                    <input type="date" id="startDate" class="form-input px-3 py-2 rounded-md border border-gray-300 focus:ring-[#3b8c6e] focus:border-[#3b8c6e]">
+                    <label for="endDate" class="text-gray-700 font-medium">End Date:</label>
+                    <input type="date" id="endDate" class="form-input px-3 py-2 rounded-md border border-gray-300 focus:ring-[#3b8c6e] focus:border-[#3b8c6e]">
+                    <button id="loadHistoricalData" class="bg-[#3b8c6e] hover:bg-[#2d6e5a] text-white font-semibold py-2 px-6 rounded-md shadow-md transition duration-200 transform hover:scale-105">
+                        Load Data
+                    </button>
+                </div>
+                <p id="historical-data-status" class="text-gray-700 text-base italic font-medium mt-2 md:mt-0"></p>
+            </div>
+
+            <!-- Toggles for Individual Graphs -->
+            <h3 class="text-xl font-semibold text-[#1a3a2a] mb-4 text-center">Individual Graph Toggles:</h3>
+            <div class="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleTemp" class="form-checkbox text-pink-500 rounded focus:ring-pink-400">
+                    <span class="ml-2 font-medium">Temperature</span>
+                </label>
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleHumidity" class="form-checkbox text-[#6A82FB] rounded focus:ring-[#5b73e6]">
+                    <span class="ml-2 font-medium">Humidity</span>
+                </label>
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleVOC" class="form-checkbox text-orange-500 rounded focus:ring-orange-400">
+                    <span class="ml-2 font-medium">VOC Index</span>
+                </label>
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleUV" class="form-checkbox text-[#2D9396] rounded focus:ring-[#247a7d]">
+                    <span class="ml-2 font-medium">UV Index</span>
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100 h-96 flex items-center justify-center">
+                    <canvas id="tempChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100 h-96 flex items-center justify-center">
+                    <canvas id="humidityChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100 h-96 flex items-center justify-center">
+                    <canvas id="vocChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100 h-96 flex items-center justify-center">
+                    <canvas id="uvChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Combined Graph Section -->
+            <h3 class="text-xl font-semibold text-[#1a3a2a] mb-4 text-center">Combined Data Trends:</h3>
+            <div class="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleCombinedTemp" class="form-checkbox text-pink-500 rounded focus:ring-pink-400">
+                    <span class="ml-2 font-medium">Temperature</span>
+                </label>
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleCombinedHumidity" class="form-checkbox text-[#6A82FB] rounded focus:ring-[#5b73e6]">
+                    <span class="ml-2 font-medium">Humidity</span>
+                </label>
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleCombinedVOC" class="form-checkbox text-orange-500 rounded focus:ring-orange-400">
+                    <span class="ml-2 font-medium">VOC Index</span>
+                </label>
+                <label class="inline-flex items-center text-gray-700">
+                    <input type="checkbox" id="toggleCombinedUV" class="form-checkbox text-[#2D9396] rounded focus:ring-[#247a7d]">
+                    <span class="ml-2 font-medium">UV Index</span>
+                </label>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100 h-96 flex items-center justify-center">
+                <canvas id="combinedChart"></canvas>
+            </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row items-center justify-center space-y-5 md:space-y-0 md:space-x-6">
+            <button id="test-email-button" class="bg-[#3b8c6e] hover:bg-[#2d6e5a] text-white font-semibold py-4 px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[#6ee7b7]">
+                Send Test Email/SMS
+            </button>
+            <p id="test-email-status" class="text-gray-700 text-base italic font-medium"></p>
+        </div>
     </div>
-  </section>
 
-  <!-- Test Email Section -->
-  <section class="mb-12 text-center">
-    <h2 class="text-3xl font-bold text-blue-800 mb-6">Test Email Alerts</h2>
-    <button
-      id="test-email-button"
-      class="px-6 py-3 rounded-full text-lg font-semibold transition duration-200 bg-green-600 text-white shadow-lg hover:bg-green-700"
-    >
-      Send Test Email/SMS
-    </button>
-    <p id="test-email-status" class="mt-3 text-sm font-medium"></p>
-  </section>
-
-  <!-- Historical Readings Section -->
-  <section class="mb-12 flex-grow">
-    <h2 class="text-3xl font-bold text-blue-800 mb-6 text-center">Historical Readings</h2>
-    <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-4xl mx-auto border-t-4 border-indigo-500 overflow-x-auto">
-      <p id="historical-loading" class="text-xl text-gray-700 text-center">Loading Historical Data...</p>
-      <p id="historical-error" class="text-xl text-red-700 text-center hidden"></p>
-      <table id="historical-data-table" class="min-w-full divide-y divide-gray-200 mb-8 hidden">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temp (°F)</th>
-            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Humidity (%)</th>
-            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VOCs</th>
-            <th class="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UV Index</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <!-- Historical data will be dynamically inserted here -->
-        </tbody>
-      </table>
-      <p id="no-historical-data" class="text-center text-gray-600 hidden">No historical data available yet.</p>
-    </div>
-  </section>
-
-  <script>
-    // --- Configuration ---
-    // Firebase configuration for connecting to your Firestore database
-    const firebaseConfig = {
-      apiKey: "AIzaSyBf4DESTk-boBK6-Q9lDm9ZaknlPiUP4Jg", // Replace with your actual API Key
-      authDomain: "uno-4-57f7c.firebaseapp.com",
-      databaseURL: "https://uno-4-57f7c-default-rtdb.firebaseio.com",
-      projectId: "uno-4-57f7c", // Replace with your actual Project ID
-      storageBucket: "uno-4-57f7c.firebasestorage.app",
-      messagingSenderId: "262060190495",
-      appId: "1:262060190495:web:a2b3067294b6c56f081e2a",
-      measurementId: "G-20BPE0ELXL"
-    };
-
-    // Google Cloud Run Service URL for sending test emails/SMS
-    // THIS IS THE CRITICAL LINE UPDATED WITH YOUR LIVE CLOUD RUN SERVICE URL
-    const PROXY_SERVER_URL = 'https://send-aurasense-alert-262060190495.us-east1.run.app';
-
-    // --- Firebase Initialization ---
-    // Initialize the Firebase app and get a reference to the Firestore database
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    // Construct Firestore paths to your 'latestReadings' and 'historicalReadings' collections
-    const projectId = firebaseConfig.projectId;
-    const latestDocRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('latestReadings').doc('latestAuraSenseReading');
-    const historicalColRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('historicalAuraSenseReadings');
-
-    // --- Helper Functions ---
-
-    // Converts Firestore Timestamps to JavaScript Date objects for display
-    const firestoreTimestampToLocalDate = (timestamp) => {
-      if (timestamp && typeof timestamp.toDate === 'function') {
-        return timestamp.toDate();
-      }
-      if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-        // Convert Firestore timestamp to milliseconds and then to a Date object
-        return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
-      }
-      return null; // Return null if timestamp is invalid or not provided
-    };
-
-    // Creates an HTML div element for displaying a single data row (e.g., Temperature: 70°F)
-    const createDataRow = (label, value, iconHtml) => `
-      <div class="flex items-center space-x-3 bg-blue-50 p-3 rounded-lg shadow-sm">
-        <span class="text-2xl text-blue-700 flex-shrink-0">${iconHtml}</span>
-        <span class="font-semibold text-blue-800 flex-shrink-0">${label}:</span>
-        <span class="text-gray-700 font-medium flex-grow text-right">${value}</span>
-      </div>
-    `;
-
-    // Updates the "Latest Readings" section of the dashboard with fetched data
-    const updateLatestReadings = (data) => {
-      const displayDiv = document.getElementById('latest-data-display');
-      const loadingText = document.getElementById('latest-loading');
-      const errorText = document.getElementById('latest-error');
-      const noDataText = document.getElementById('no-latest-data');
-
-      // Hide loading/error messages
-      loadingText.classList.add('hidden');
-      errorText.classList.add('hidden');
-
-      if (data) {
-        // Populate the display div with dynamic data rows
-        displayDiv.innerHTML = `
-          ${createDataRow("Temperature", `${data.tempF?.toFixed(1) || 'N/A'} °F`, "&#x263C;")}
-          ${createDataRow("Humidity", `${data.humidity?.toFixed(0) || 'N/A'} %`, "&#x1F4A7;")}
-          ${createDataRow("VOCs", `${data.gasRaw || 'N/A'} (${data.vocCondition || 'N/A'})`, "&#x1F4A8;")}
-          ${createDataRow("UV Index", `${data.uvIndex?.toFixed(1) || 'N/A'} (${data.uvCondition || 'N/A'})`, "&#x2600;&#xFE0F;")}
-          <div class="md:col-span-2 text-center text-sm text-gray-500 mt-4">
-            Last Updated: ${data.timestamp ? data.timestamp.toLocaleString() : 'N/A'}
-          </div>
-        `;
-        displayDiv.classList.remove('hidden'); // Show the data display
-        noDataText.classList.add('hidden');    // Hide the "no data" message
-      } else {
-        displayDiv.classList.add('hidden');   // Hide the data display
-        noDataText.classList.remove('hidden'); // Show the "no data" message
-      }
-    };
-
-    // Updates the "Historical Readings" table with fetched data
-    const updateHistoricalTable = (readings) => {
-      const tableBody = document.querySelector('#historical-data-table tbody');
-      const loadingText = document.getElementById('historical-loading');
-      const errorText = document.getElementById('historical-error');
-      const tableElement = document.getElementById('historical-data-table');
-      const noDataText = document.getElementById('no-historical-data');
-
-      // Hide loading/error messages and clear existing table rows
-      loadingText.classList.add('hidden');
-      errorText.classList.add('hidden');
-      tableBody.innerHTML = '';
-
-      if (readings && readings.length > 0) {
-        // Sort readings by timestamp in descending order (latest first)
-        readings.sort((a, b) => {
-          const tsA = a.timestamp ? a.timestamp.getTime() : 0;
-          const tsB = b.timestamp ? b.timestamp.getTime() : 0;
-          return tsB - tsA;
-        });
-        
-        // Take only the latest 10 readings for display
-        readings.slice(0, 10).forEach(reading => {
-          const row = document.createElement('tr');
-          row.className = 'hover:bg-blue-50'; // Add hover effect to rows
-          row.innerHTML = `
-            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.timestamp ? reading.timestamp.toLocaleString() : 'N/A'}</td>
-            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.tempF?.toFixed(1) || 'N/A'}</td>
-            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.humidity?.toFixed(0) || 'N/A'}</td>
-            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.gasRaw || 'N/A'} (${reading.vocCondition || 'N/A'})</td>
-            <td class="px-4 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-700">${reading.uvIndex?.toFixed(1) || 'N/A'} (${reading.uvCondition || 'N/A'})</td>
-          `;
-          tableBody.appendChild(row); // Add row to the table body
-        });
-        tableElement.classList.remove('hidden'); // Show the table
-        noDataText.classList.add('hidden');      // Hide the "no data" message
-      } else {
-        tableElement.classList.add('hidden');   // Hide the table
-        noDataText.classList.remove('hidden'); // Show the "no data" message
-      }
-    };
-
-    // --- Firebase Data Fetching ---
-
-    // Sets up a real-time listener for the latest reading document in Firestore
-    const setupLatestReadingListener = () => {
-      latestDocRef.onSnapshot((docSnap) => {
-        if (docSnap.exists) {
-          const data = docSnap.data();
-          // Convert Firestore timestamp to local date for display
-          if (data.timestamp) {
-            data.timestamp = firestoreTimestampToLocalDate(data.timestamp);
-          }
-          updateLatestReadings(data); // Update the UI with the latest data
-        } else {
-          updateLatestReadings(null); // No latest data found
-        }
-      }, (err) => {
-        console.error("Error listening to latest reading:", err);
-        document.getElementById('latest-loading').classList.add('hidden');
-        document.getElementById('latest-error').textContent = "Failed to fetch latest data. Check console for details.";
-        document.getElementById('latest-error').classList.remove('hidden');
-      });
-    };
-
-    // Fetches historical readings from Firestore (called periodically)
-    const fetchHistoricalReadings = async () => {
-      try {
-        const querySnapshot = await historicalColRef.get();
-        const readings = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          // Convert Firestore timestamp to local date for display
-          if (data.timestamp) {
-            data.timestamp = firestoreTimestampToLocalDate(data.timestamp);
-          }
-          readings.push(data);
-        });
-        updateHistoricalTable(readings); // Update the UI with historical data
-      } catch (err) {
-        console.error("Error fetching historical data:", err);
-        document.getElementById('historical-loading').classList.add('hidden');
-        document.getElementById('historical-error').textContent = "Failed to fetch historical data. Check console for details.";
-        document.getElementById('historical-error').classList.remove('hidden');
-      }
-    };
-
-    // --- Test Email/SMS Functionality ---
-
-    const testEmailButton = document.getElementById('test-email-button');
-    const testEmailStatusElement = document.getElementById('test-email-status');
-
-    // Handles the click event for the "Send Test Email/SMS" button
-    const handleSendTestEmail = async () => {
-      // Disable button and show sending status
-      testEmailButton.disabled = true;
-      testEmailButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
-      testEmailButton.classList.remove('bg-green-600', 'text-white', 'shadow-lg', 'hover:bg-green-700');
-
-      testEmailStatusElement.textContent = 'Sending test alert...';
-      testEmailStatusElement.classList.remove('text-green-700', 'text-red-700');
-
-      try {
-        // Fetch current latest readings to send as test data
-        const latestDocSnap = await latestDocRef.get();
-        let testData = {
-          temp: 0, humidity: 0, gasRaw: 0, vocCondition: 'N/A', uvIndex: 0, uvCondition: 'N/A'
+    <script type="module">
+        // --- Configuration ---
+        // Firebase configuration for connecting to your Firestore database
+        const firebaseConfig = {
+            apiKey: "AIzaSyBf4DESTk-boBK6-Q9lDm9ZaknlPiUP4Jg",
+            authDomain: "uno-4-57f7c.firebaseapp.com",
+            databaseURL: "https://uno-4-57f7c-default-rtdb.firebaseio.com",
+            projectId: "uno-4-57f7c",
+            storageBucket: "uno-4-57f7c.firebasestorage.app",
+            messagingSenderId: "262060190495",
+            appId: "1:262060190495:web:a2b3067294b6c56f081e2a",
+            measurementId: "G-20BPE0ELXL"
         };
 
-        if (latestDocSnap.exists) {
-          const data = latestDocSnap.data();
-          testData = {
-            temp: data.tempF?.toFixed(1) || 'N/A',
-            humidity: data.humidity?.toFixed(0) || 'N/A',
-            gasRaw: data.gasRaw || 'N/A',
-            vocCondition: data.vocCondition || 'N/A',
-            uvIndex: data.uvIndex?.toFixed(1) || 'N/A',
-            uvCondition: data.uvCondition || 'N/A'
-          };
-        } else {
-            console.warn("No latest data available for test alert. Sending placeholder values.");
-            testData = {
-                temp: 70.0, humidity: 50, gasRaw: 100, vocCondition: 'Normal', uvIndex: 1.0, uvCondition: 'Low'
+        // Google Cloud Run Service URL for sending test emails/SMS
+        const PROXY_SERVER_URL = 'https://send-aurasense-alert-262060190495.us-east1.run.app';
+
+        // --- Firebase Initialization ---
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth(); // Initialize Firebase Auth
+
+        // Construct Firestore paths to your 'latestReadings' and 'historicalReadings' collections
+        const projectId = firebaseConfig.projectId; // Use projectId from the config
+        const latestDocRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('latestReadings').doc('latestAuraSenseReading');
+        const historicalColRef = db.collection('artifacts').doc(projectId).collection('public').doc('data').collection('historicalAuraSenseReadings');
+
+        // --- Chart Instances (Global) ---
+        let tempChart, humidityChart, vocChart, uvChart, combinedChart;
+
+        // --- Helper Functions ---
+
+        // Converts Firestore Timestamps to JavaScript Date objects for display
+        const firestoreTimestampToLocalDate = (timestamp) => {
+            if (timestamp && typeof timestamp.toDate === 'function') {
+                return timestamp.toDate();
+            }
+            if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+                return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+            }
+            return null;
+        };
+
+        // Creates an HTML div element for displaying a single data row
+        const createDataRow = (label, value, iconHtml) => `
+            <div class="bg-white p-6 rounded-lg shadow-lg border border-[#3b8c6e] flex flex-col items-center justify-center transform hover:scale-105 transition-transform duration-200 ease-in-out">
+                <p class="text-gray-600 text-sm font-medium mb-1">${label}</p>
+                <p id="${label.toLowerCase().replace(/\s/g, '-')}-value" class="text-4xl font-extrabold text-[#1f4a38] mt-2">${value}</p>
+            </div>
+        `;
+
+        // Updates the "Latest Readings" section of the dashboard with fetched data
+        const updateLatestReadingsUI = (data) => {
+            const latestLoading = document.getElementById('latest-loading');
+            const latestError = document.getElementById('latest-error');
+            const noLatestData = document.getElementById('no-latest-data');
+            const latestDataDisplayContent = document.getElementById('latest-data-display-content');
+
+            latestLoading.classList.add('hidden');
+            latestError.classList.add('hidden');
+
+            if (data) {
+                latestDataDisplayContent.innerHTML = `
+                    ${createDataRow("Temperature", `${data.tempF?.toFixed(1) || 'N/A'} °F`, "&#x263C;")}
+                    ${createDataRow("Humidity", `${data.humidity?.toFixed(0) || 'N/A'} %`, "&#x1F4A7;")}
+                    ${createDataRow("VOCs", `${data.gasRaw || 'N/A'} (${data.vocCondition || 'N/A'})`, "&#x1F4A8;")}
+                    ${createDataRow("UV Index", `${data.uvIndex?.toFixed(1) || 'N/A'} (${data.uvCondition || 'N/A'})`, "&#x2600;&#xFE0F;")}
+                `;
+                latestDataDisplayContent.classList.remove('hidden');
+                noLatestData.classList.add('hidden');
+                document.getElementById('last-updated-content').textContent = data.timestamp ? firestoreTimestampToLocalDate(data.timestamp).toLocaleString() : 'N/A';
+            } else {
+                latestDataDisplayContent.classList.add('hidden');
+                noLatestData.classList.remove('hidden');
+                document.getElementById('last-updated-content').textContent = 'N/A';
+            }
+        };
+
+        // Function to initialize charts (kept consistent, but pointRadius/borderWidth for combined chart adjusted)
+        function initializeCharts() {
+            const commonChartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#4A5568',
+                            font: { family: 'Inter', size: 13 }
+                        }
+                    },
+                    tooltip: {
+                        titleFont: { family: 'Inter' },
+                        bodyFont: { family: 'Inter' }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Time', color: '#4A5568', font: { family: 'Inter', size: 14, weight: 'bold' } },
+                        ticks: { color: '#718096', font: { family: 'Inter' } },
+                        grid: { color: 'rgba(226, 232, 240, 0.5)' }
+                    },
+                    y: {
+                        beginAtZero: false,
+                        title: { display: true, text: 'Value', color: '#4A5568', font: { family: 'Inter', size: 14, weight: 'bold' } },
+                        ticks: { color: '#718096', font: { family: 'Inter' } },
+                        grid: { color: 'rgba(226, 232, 240, 0.5)' }
+                    }
+                }
             };
+
+            const ctxTemp = document.getElementById('tempChart').getContext('2d');
+            tempChart = new Chart(ctxTemp, { type: 'line', data: { labels: [], datasets: [{ label: 'Temperature (°F)', data: [], borderColor: '#FC5C7D', backgroundColor: 'rgba(252, 92, 125, 0.2)', tension: 0.3, fill: true, pointBackgroundColor: '#FC5C7D', pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: '#FC5C7D', borderWidth: 2 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, title: { ...commonChartOptions.scales.y.title, text: 'Temperature (°F)' } } } } });
+
+            const ctxHumidity = document.getElementById('humidityChart').getContext('2d');
+            humidityChart = new Chart(ctxHumidity, { type: 'line', data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#6A82FB', backgroundColor: 'rgba(106, 130, 251, 0.2)', tension: 0.3, fill: true, pointBackgroundColor: '#6A82FB', pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: '#6A82FB', borderWidth: 2 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, title: { ...commonChartOptions.scales.y.title, text: 'Humidity (%)' } } } } });
+
+            const ctxVOC = document.getElementById('vocChart').getContext('2d');
+            vocChart = new Chart(ctxVOC, { type: 'line', data: { labels: [], datasets: [{ label: 'VOC Index', data: [], borderColor: '#FFC371', backgroundColor: 'rgba(255, 195, 113, 0.2)', tension: 0.3, fill: true, pointBackgroundColor: '#FFC371', pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: '#FFC371', borderWidth: 2 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, title: { ...commonChartOptions.scales.y.title, text: 'VOC Index' } } } } });
+
+            const ctxUV = document.getElementById('uvChart').getContext('2d');
+            uvChart = new Chart(ctxUV, { type: 'line', data: { labels: [], datasets: [{ label: 'UV Index', data: [], borderColor: '#2D9396', backgroundColor: 'rgba(45, 147, 150, 0.2)', tension: 0.3, fill: true, pointBackgroundColor: '#2D9396', pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: '#2D9396', borderWidth: 2 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, beginAtZero: true, title: { ...commonChartOptions.scales.y.title, text: 'UV Index' } } } } });
+
+            const ctxCombined = document.getElementById('combinedChart').getContext('2d');
+            combinedChart = new Chart(ctxCombined, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Temperature (°F)', data: [], borderColor: '#FC5C7D', backgroundColor: 'rgba(252, 92, 125, 0.2)', tension: 0.3, fill: false, yAxisID: 'y-temp', borderWidth: 1, pointRadius: 0, pointHoverRadius: 2 },
+                        { label: 'Humidity (%)', data: [], borderColor: '#6A82FB', backgroundColor: 'rgba(106, 130, 251, 0.2)', tension: 0.3, fill: false, yAxisID: 'y-humidity', borderWidth: 1, pointRadius: 0, pointHoverRadius: 2 },
+                        { label: 'VOC Index', data: [], borderColor: '#FFC371', backgroundColor: 'rgba(255, 195, 113, 0.2)', tension: 0.3, fill: false, yAxisID: 'y-voc', borderWidth: 1, pointRadius: 0, pointHoverRadius: 2 },
+                        { label: 'UV Index', data: [], borderColor: '#2D9396', backgroundColor: 'rgba(45, 147, 150, 0.2)', tension: 0.3, fill: false, yAxisID: 'y-uv', borderWidth: 1, pointRadius: 0, pointHoverRadius: 2 }
+                    ]
+                },
+                options: {
+                    ...commonChartOptions,
+                    scales: {
+                        x: commonChartOptions.scales.x,
+                        'y-temp': { type: 'linear', position: 'left', title: { display: true, text: 'Temp (°F)', color: '#FC5C7D' }, ticks: { color: '#FC5C7D' }, grid: { drawOnChartArea: false } },
+                        'y-humidity': { type: 'linear', position: 'right', title: { display: true, text: 'Humidity (%)', color: '#6A82FB' }, ticks: { color: '#6A82FB' }, grid: { drawOnChartArea: false } },
+                        'y-voc': { type: 'linear', position: 'left', title: { display: true, text: 'VOC Index', color: '#FFC371' }, ticks: { color: '#FFC371' }, grid: { drawOnChartArea: false } },
+                        'y-uv': { type: 'linear', position: 'right', title: { display: true, text: 'UV Index', color: '#2D9396' }, ticks: { color: '#2D9396' }, beginAtZero: true, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
         }
 
-        // Make a POST request to your Cloud Run service
-        const response = await fetch(`${PROXY_SERVER_URL}/test-email-sms`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ // Send current environmental data for the alert
-            temp: testData.temp,
-            humidity: testData.humidity,
-            vocCondition: testData.vocCondition,
-            uvIndex: testData.uvIndex,
-            uvCondition: testData.uvCondition
-          })
+        // Function to update chart data with smart date formatting
+        const updateCharts = (readings) => {
+            // Clear charts if no data
+            if (!readings || readings.length === 0) {
+                tempChart.data.labels = [];
+                tempChart.data.datasets.forEach(dataset => dataset.data = []);
+                tempChart.update();
+
+                humidityChart.data.labels = [];
+                humidityChart.data.datasets.forEach(dataset => dataset.data = []);
+                humidityChart.update();
+
+                vocChart.data.labels = [];
+                vocChart.data.datasets.forEach(dataset => dataset.data = []);
+                vocChart.update();
+
+                uvChart.data.labels = [];
+                uvChart.data.datasets.forEach(dataset => dataset.data = []);
+                uvChart.update();
+
+                combinedChart.data.labels = [];
+                combinedChart.data.datasets.forEach(dataset => dataset.data = []);
+                combinedChart.update();
+
+                return; // Exit if no readings
+            }
+
+            readings.sort((a, b) => firestoreTimestampToLocalDate(a.timestamp).getTime() - firestoreTimestampToLocalDate(b.timestamp).getTime());
+
+            let formatDateOptions = { hour: '2-digit', minute: '2-digit' };
+            if (readings.length > 1) {
+                const firstDate = firestoreTimestampToLocalDate(readings[0].timestamp);
+                const lastDate = firestoreTimestampToLocalDate(readings[readings.length - 1].timestamp);
+                if (firstDate && lastDate && (firstDate.toDateString() !== lastDate.toDateString())) {
+                    formatDateOptions = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+                }
+            }
+
+            const labels = readings.map(r => {
+                const date = firestoreTimestampToLocalDate(r.timestamp);
+                return date ? date.toLocaleTimeString([], formatDateOptions) : 'N/A';
+            });
+            const temps = readings.map(r => r.tempF);
+            const humidities = readings.map(r => r.humidity);
+            const vocs = readings.map(r => r.gasRaw);
+            const uvs = readings.map(r => r.uvIndex);
+
+            // Update individual charts
+            tempChart.data.labels = labels;
+            tempChart.data.datasets[0].data = temps;
+            tempChart.update();
+
+            humidityChart.data.labels = labels;
+            humidityChart.data.datasets[0].data = humidities;
+            humidityChart.update();
+
+            vocChart.data.labels = labels;
+            vocChart.data.datasets[0].data = vocs;
+            vocChart.update();
+
+            uvChart.data.labels = labels;
+            uvChart.data.datasets[0].data = uvs;
+            uvChart.update();
+
+            // Update combined chart
+            combinedChart.data.labels = labels;
+            combinedChart.data.datasets[0].data = temps;
+            combinedChart.data.datasets[1].data = humidities;
+            combinedChart.data.datasets[2].data = vocs;
+            combinedChart.data.datasets[3].data = uvs;
+            combinedChart.update();
+        };
+
+        // Fetches historical readings from Firestore
+        const fetchHistoricalReadings = async () => {
+            const statusMessageElement = document.getElementById('historical-data-status');
+            if (statusMessageElement) {
+                statusMessageElement.textContent = 'Loading historical data...';
+                statusMessageElement.className = 'text-gray-600';
+            }
+
+            const startDateInput = document.getElementById('startDate').value;
+            const endDateInput = document.getElementById('endDate').value;
+
+            if (!startDateInput || !endDateInput) {
+                if (statusMessageElement) {
+                    statusMessageElement.textContent = "Please select both start and end dates to load historical data.";
+                    statusMessageElement.className = 'text-red-600';
+                }
+                updateCharts([]); // Clear charts if dates are missing
+                return;
+            }
+
+            // Parse dates to include time for accurate range querying (start of start day, end of end day)
+            const startDate = firebase.firestore.Timestamp.fromDate(new Date(startDateInput + 'T00:00:00'));
+            const endDate = firebase.firestore.Timestamp.fromDate(new Date(endDateInput + 'T23:59:59'));
+
+            const q = historicalColRef
+                .where('timestamp', '>=', startDate)
+                .where('timestamp', '<=', endDate)
+                .orderBy('timestamp', 'desc');
+
+            try {
+                const querySnapshot = await q.get();
+                const historicalReadings = [];
+                querySnapshot.forEach(doc => historicalReadings.push(doc.data()));
+                
+                updateCharts(historicalReadings);
+                if (statusMessageElement) {
+                    if (historicalReadings.length > 0) {
+                        statusMessageElement.textContent = `Loaded ${historicalReadings.length} historical readings.`;
+                        statusMessageElement.className = 'text-[#3b8c6e]';
+                    } else {
+                        statusMessageElement.textContent = `No historical data found for the selected date range.`;
+                        statusMessageElement.className = 'text-orange-500'; // Indicate no data specifically
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching historical data:", error);
+                if (statusMessageElement) {
+                    statusMessageElement.textContent = `Error loading historical data: ${error.message}.`;
+                    statusMessageElement.className = 'text-red-600';
+                }
+                updateCharts([]); // Clear charts on error
+            } finally {
+                setTimeout(() => {
+                    if (statusMessageElement) {
+                        statusMessageElement.textContent = '';
+                        statusMessageElement.classList.remove('text-[#3b8c6e]', 'text-red-600', 'text-gray-600', 'text-orange-500');
+                    }
+                }, 5000);
+            }
+        };
+
+
+        // Sets up a real-time listener for the latest reading document in Firestore
+        const setupLatestReadingListener = () => {
+            latestDocRef.onSnapshot((docSnap) => {
+                if (docSnap.exists) {
+                    const data = docSnap.data();
+                    updateLatestReadingsUI(data);
+                } else {
+                    updateLatestReadingsUI(null);
+                }
+            }, (err) => {
+                console.error("Error listening to latest reading:", err);
+                document.getElementById('latest-loading').classList.add('hidden');
+                document.getElementById('latest-error').textContent = `Failed to fetch latest data: ${err.message}.`;
+                document.getElementById('latest-error').classList.remove('hidden');
+            });
+        };
+
+        // Function to display messages in a custom way (replacing alert())
+        function displayMessage(message, className) {
+            const messageBox = document.createElement('div');
+            messageBox.textContent = message;
+            messageBox.className = `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-4 rounded-lg shadow-lg z-50 ${className === 'text-red-600' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-[#e0f2f1] text-[#1a3a2a] border border-[#a7d9d5]'}`;
+            document.body.appendChild(messageBox);
+            setTimeout(() => {
+                messageBox.remove();
+            }, 3000);
+        }
+
+        // --- Test Email/SMS Functionality (EXACTLY from your working code) ---
+        const testEmailButton = document.getElementById('test-email-button');
+        const testEmailStatusElement = document.getElementById('test-email-status');
+
+        const handleSendTestEmail = async () => {
+            // Disable button and show sending status
+            testEmailButton.disabled = true;
+            testEmailButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+            testEmailButton.classList.remove('bg-[#3b8c6e]', 'text-white', 'shadow-lg', 'hover:bg-[#2d6e5a]'); // Adjusted colors
+
+            testEmailStatusElement.textContent = 'Sending test alert...';
+            testEmailStatusElement.classList.remove('text-[#3b8c6e]', 'text-red-600'); // Adjusted colors
+
+            try {
+                // Fetch current latest readings to send as test data
+                const latestDocSnap = await latestDocRef.get();
+                let testData = {
+                    temp: 0, humidity: 0, gasRaw: 0, vocCondition: 'N/A', uvIndex: 0, uvCondition: 'N/A'
+                };
+
+                if (latestDocSnap.exists) {
+                    const data = latestDocSnap.data();
+                    testData = {
+                        temp: data.tempF?.toFixed(1) || 'N/A',
+                        humidity: data.humidity?.toFixed(0) || 'N/A',
+                        gasRaw: data.gasRaw || 'N/A',
+                        vocCondition: data.vocCondition || 'N/A',
+                        uvIndex: data.uvIndex?.toFixed(1) || 'N/A',
+                        uvCondition: data.uvCondition || 'N/A'
+                    };
+                } else {
+                    console.warn("No latest data available for test alert. Sending placeholder values.");
+                    testData = {
+                        temp: 70.0, humidity: 50, gasRaw: 100, vocCondition: 'Normal', uvIndex: 1.0, uvCondition: 'Low'
+                    };
+                }
+
+                // Make a POST request to your Cloud Run service
+                const response = await fetch(`${PROXY_SERVER_URL}/test-email-sms`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ // Send current environmental data for the alert
+                        temp: testData.temp,
+                        humidity: testData.humidity,
+                        vocCondition: testData.vocCondition,
+                        uvIndex: testData.uvIndex,
+                        uvCondition: testData.uvCondition
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    testEmailStatusElement.textContent = data.message || 'Test alert sent successfully!';
+                    testEmailStatusElement.classList.add('text-[#3b8c6e]'); // Success green
+                } else {
+                    testEmailStatusElement.textContent = data.message || 'Failed to send test alert.';
+                    testEmailStatusElement.classList.add('text-red-600'); // Error red
+                }
+            } catch (err) {
+                console.error('Network or server error sending test alert:', err);
+                testEmailStatusElement.textContent = `Network error: ${err.message}. Ensure Cloud Run service is running and accessible.`;
+                testEmailStatusElement.classList.add('text-red-600'); // Error red
+            } finally {
+                // Re-enable button and clear status after a delay
+                testEmailButton.disabled = false;
+                testEmailButton.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+                testEmailButton.classList.add('bg-[#3b8c6e]', 'text-white', 'shadow-lg', 'hover:bg-[#2d6e5a]'); // Adjusted colors
+                setTimeout(() => {
+                    testEmailStatusElement.textContent = '';
+                    testEmailStatusElement.classList.remove('text-[#3b8c6e]', 'text-red-600');
+                }, 5000);
+            }
+        };
+
+        // --- Firebase Authentication Status ---
+        // Listen for authentication state changes and update UI
+        auth.onAuthStateChanged((user) => {
+            const userIdDisplay = document.getElementById('user-id-display');
+            if (user) {
+                userIdDisplay.textContent = `User Status: Logged in (UID: ${user.uid})`;
+            } else {
+                // If no user is logged in, try anonymous sign-in
+                auth.signInAnonymously().then(() => {
+                    userIdDisplay.textContent = 'User Status: Authenticated Anonymously (Guest)';
+                }).catch((error) => {
+                    console.error("Error signing in anonymously:", error);
+                    userIdDisplay.textContent = `User Status: Authentication Failed (${error.message})`;
+                    userIdDisplay.classList.add('text-red-600'); // Indicate error
+                });
+            }
         });
 
-        const data = await response.json();
 
-        if (response.ok) {
-          testEmailStatusElement.textContent = data.message || 'Test alert sent successfully!';
-          testEmailStatusElement.classList.add('text-green-700');
-        } else {
-          testEmailStatusElement.textContent = data.message || 'Failed to send test alert.';
-          testEmailStatusElement.classList.add('text-red-700');
-        }
-      } catch (err) {
-        console.error('Network or server error sending test alert:', err);
-        testEmailStatusElement.textContent = `Network error: ${err.message}. Ensure Cloud Run service is running and accessible.`;
-        testEmailStatusElement.classList.add('text-red-700');
-      } finally {
-        // Re-enable button and clear status after a delay
-        testEmailButton.disabled = false;
-        testEmailButton.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
-        testEmailButton.classList.add('bg-green-600', 'text-white', 'shadow-lg', 'hover:bg-green-700');
-        setTimeout(() => {
-          testEmailStatusElement.textContent = '';
-          testEmailStatusElement.classList.remove('text-green-700', 'text-red-700');
-        }, 5000); // Clear message after 5 seconds
-      }
-    };
+        // --- Event Listeners and Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            testEmailButton.addEventListener('click', handleSendTestEmail);
+            setupLatestReadingListener(); // Start listening for real-time latest data
+            
+            // Set default dates for initial chart load (last 24 hours)
+            const defaultEndDate = new Date();
+            const defaultStartDate = new Date(defaultEndDate.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+            document.getElementById('endDate').valueAsDate = defaultEndDate;
+            document.getElementById('startDate').valueAsDate = defaultStartDate;
 
-    // --- Event Listeners and Initial Load ---
-    document.addEventListener('DOMContentLoaded', () => {
-      testEmailButton.addEventListener('click', handleSendTestEmail);
-      setupLatestReadingListener(); // Start listening for real-time latest data
-      fetchHistoricalReadings();     // Fetch historical data once
-      setInterval(fetchHistoricalReadings, 5 * 60 * 1000); // Refresh historical data every 5 minutes
-    });
-  </script>
+            // Attach event listener for historical data button
+            document.getElementById('loadHistoricalData').addEventListener('click', fetchHistoricalReadings); 
+
+            // Initial fetch of historical data
+            fetchHistoricalReadings();
+            // Refresh historical data every 5 minutes (optional, can be removed if not desired for charts)
+            // setInterval(fetchHistoricalReadings, 5 * 60 * 1000); 
+            
+            // Initialize charts
+            initializeCharts();
+
+            // Set all toggles to true by default on load
+            document.getElementById('toggleTemp').checked = true;
+            document.getElementById('toggleHumidity').checked = true;
+            document.getElementById('toggleVOC').checked = true;
+            document.getElementById('toggleUV').checked = true;
+            document.getElementById('toggleCombinedTemp').checked = true;
+            document.getElementById('toggleCombinedHumidity').checked = true;
+            document.getElementById('toggleCombinedVOC').checked = true;
+            document.getElementById('toggleCombinedUV').checked = true;
+
+            // Event listeners for chart toggles
+            document.getElementById('toggleTemp').addEventListener('change', (e) => {
+                tempChart.data.datasets[0].hidden = !e.target.checked;
+                tempChart.update();
+            });
+            document.getElementById('toggleHumidity').addEventListener('change', (e) => {
+                humidityChart.data.datasets[0].hidden = !e.target.checked;
+                humidityChart.update();
+            });
+            document.getElementById('toggleVOC').addEventListener('change', (e) => {
+                vocChart.data.datasets[0].hidden = !e.target.checked;
+                vocChart.update();
+            });
+            document.getElementById('toggleUV').addEventListener('change', (e) => {
+                uvChart.data.datasets[0].hidden = !e.target.checked;
+                uvChart.update();
+            });
+
+            document.getElementById('toggleCombinedTemp').addEventListener('change', (e) => {
+                combinedChart.data.datasets[0].hidden = !e.target.checked;
+                combinedChart.update();
+            });
+            document.getElementById('toggleCombinedHumidity').addEventListener('change', (e) => {
+                combinedChart.data.datasets[1].hidden = !e.target.checked;
+                combinedChart.update();
+            });
+            document.getElementById('toggleCombinedVOC').addEventListener('change', (e) => {
+                combinedChart.data.datasets[2].hidden = !e.target.checked;
+                combinedChart.update();
+            });
+            document.getElementById('toggleCombinedUV').addEventListener('change', (e) => {
+                combinedChart.data.datasets[3].hidden = !e.target.checked;
+                combinedChart.update();
+            });
+        });
+    </script>
 </body>
 </html>
